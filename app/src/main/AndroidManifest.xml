@@ -49,15 +49,19 @@
             </intent-filter>
         </receiver>
 
-        <!-- 通知栏修改时间接收器 -->
-        <receiver
-            android:name=".reminder.NotificationActionReceiver"
-            android:exported="false" />
-
         <!-- 午夜自动清理接收器 -->
         <receiver
             android:name=".reminder.MidnightCleanupReceiver"
             android:exported="false" />
+
+        <!-- 摇一摇关闭闹铃全屏提醒 -->
+        <activity
+            android:name=".ui.ShakeAlertActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.MinFlash" />
 
     </application>
 

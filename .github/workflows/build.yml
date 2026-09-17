@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
     - name: Checkout code
@@ -19,19 +22,30 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Set up Gradle 8.9
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.9'
 
-    - name: Install Gradle
+    - name: Ensure Android SDK packages
       run: |
-        sudo apt update
-        sudo apt install -y gradle
+        SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMANAGER" ]; then
+          SDKMANAGER=$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -n1)
+        fi
+        echo "Using sdkmanager at: $SDKMANAGER"
+        yes | "$SDKMANAGER" --licenses > /dev/null || true
+        "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+    - name: Run unit tests
+      run: gradle testDebugUnitTest --no-daemon --stacktrace
 
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon
+      run: gradle assembleDebug --no-daemon --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: minflash-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30

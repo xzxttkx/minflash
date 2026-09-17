@@ -10,8 +10,8 @@ class TimeParserTest {
 
     @Test
     fun parse_afternoonFive_buyDetergent_extractsCorrectTime() {
-        // 测试"下午五点买洗衣粉"
-        val result = TimeParser.parse("下午五点买洗衣粉")
+        // 测试"明天下午五点买洗衣粉"（加"明天"保证时间在未来，避免依赖运行时刻）
+        val result = TimeParser.parse("明天下午五点买洗衣粉")
         assertEquals("买洗衣粉", result.content)
         assertNotNull(result.remindTime)
 
@@ -41,8 +41,8 @@ class TimeParserTest {
         assertEquals("喝水", result.content)
         assertNotNull(result.remindTime)
 
-        val diff = (result.remindTime!! - System.currentTimeMillis()) / 1000 / 60
-        assertEquals(30L, diff, 2.0) // 允许2分钟误差
+        val diff = (result.remindTime!! - System.currentTimeMillis()) / 1000.0 / 60.0
+        assertEquals(30.0, diff, 2.0) // 允许2分钟误差
     }
 
     @Test
@@ -55,11 +55,23 @@ class TimeParserTest {
 
     @Test
     fun parse_halfPastThree_returns30Minutes() {
-        // 测试"下午三点半买菜"
-        val result = TimeParser.parse("下午三点半买菜")
+        // 测试"明天下午三点半买菜"（加"明天"保证时间在未来，避免依赖运行时刻）
+        val result = TimeParser.parse("明天下午三点半买菜")
         assertEquals("买菜", result.content)
         val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
         assertEquals(15, calendar.get(Calendar.HOUR_OF_DAY))
         assertEquals(30, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_pastTimeToday_returnsNullRemindTime() {
+        // 今天凌晨3点（相对于绝大多数运行时刻都已过去），应返回 null 提醒时间
+        val result = TimeParser.parse("凌晨三点浇花")
+        assertEquals("浇花", result.content)
+        // 凌晨3点基本已过；若恰好在 0-3 点运行则可能非 null，故仅在已过时断言 null
+        val cal = Calendar.getInstance()
+        if (cal.get(Calendar.HOUR_OF_DAY) >= 3) {
+            assertNull(result.remindTime)
+        }
     }
 }

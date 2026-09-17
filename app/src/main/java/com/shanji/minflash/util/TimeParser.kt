@@ -1,11 +1,11 @@
 package com.shanji.minflash.util
 
 import java.util.Calendar
-import java.util.Locale
 
 /**
  * 从用户输入文本中提取提醒时间和任务内容
  * 支持常见表达："下午五点买牛奶"、"明天早上八点开会"、"半小时后喝水"
+ * 同时支持中文数字（一~十二）和阿拉伯数字
  */
 object TimeParser {
     data class ParseResult(
@@ -13,12 +13,33 @@ object TimeParser {
         val remindTime: Long?
     )
 
+    private val CN_NUM_MAP = mapOf(
+        "零" to 0, "〇" to 0,
+        "一" to 1, "二" to 2, "两" to 2,
+        "三" to 3, "四" to 4, "五" to 5, "六" to 6,
+        "七" to 7, "八" to 8, "九" to 9,
+        "十" to 10, "十一" to 11, "十二" to 12
+    )
+
+    private fun parseNumber(token: String): Int? {
+        if (token.isEmpty()) return null
+        token.toIntOrNull()?.let { return it }
+        return CN_NUM_MAP[token]
+    }
+
     fun parse(input: String): ParseResult {
         val trimmed = input.trim()
         var currentTime = Calendar.getInstance()
         var content = trimmed
 
-        // 1. 处理"X分钟后"的相对时间
+        // 1. 处理"半小时后"
+        if (trimmed.contains("半小时后")) {
+            currentTime.add(Calendar.MINUTE, 30)
+            content = trimmed.replace("半小时后", "").trim()
+            return ParseResult(content, currentTime.timeInMillis)
+        }
+
+        // 2. 处理"X分钟后"的相对时间（阿拉伯数字）
         val minuteRegex = Regex("(\\d+)\\s*分钟后")
         minuteRegex.find(trimmed)?.let { match ->
             val minutes = match.groupValues[1].toInt()
@@ -27,50 +48,51 @@ object TimeParser {
             return ParseResult(content, currentTime.timeInMillis)
         }
 
-        // 2. 处理"明天"
+        // 3. 处理"明天"
         var isTomorrow = false
         if (trimmed.contains("明天")) {
             isTomorrow = true
             content = content.replace("明天", "").trim()
         }
 
-        // 3. 处理时段：早上/上午/中午/下午/晚上/凌晨
-        var hour = -1
-        var minute = 0
+        // 4. 处理时段：早上/上午/中午/下午/晚上/凌晨
+        var period: Period = Period.NONE
         when {
             content.contains("凌晨") -> {
                 content = content.replace("凌晨", "").trim()
-                // 凌晨默认0-6点，比如"凌晨三点"就是3点
+                period = Period.EARLY_MORNING
             }
             content.contains("早上") || content.contains("上午") -> {
                 content = content.replace("早上", "").replace("上午", "").trim()
+                period = Period.MORNING
             }
             content.contains("中午") -> {
                 content = content.replace("中午", "").trim()
-                hour = 12
+                period = Period.NOON
             }
             content.contains("下午") -> {
                 content = content.replace("下午", "").trim()
-                // 下午需要+12，除非是12点
+                period = Period.AFTERNOON
             }
             content.contains("晚上") -> {
                 content = content.replace("晚上", "").trim()
-                // 晚上默认+12
+                period = Period.EVENING
             }
         }
 
-        // 4. 提取时间数字："五点"、"三点半"、"八点半"、"14:30"
-        // 先匹配X点Y分的格式
-        val timeRegex = Regex("(\\d+)\\s*点(半)?(\\d+)?\\s*分?")
-        timeRegex.find(content)?.let { match ->
-            val rawHour = match.groupValues[1].toInt()
-            val isHalf = match.groupValues[2] == "半"
-            val rawMinute = match.groupValues[3].takeIf { it.isNotEmpty() }?.toInt() ?: 0
+        var hour = -1
+        var minute = 0
 
-            // 处理12小时制
-            hour = when {
-                hour == 12 -> rawHour // 中午
-                content.contains("下午") || content.contains("晚上") -> {
+        // 5. 提取时间数字："五点"、"三点半"、"八点半"、"五点三十分"、"14点30分"
+        val timeRegex = Regex("([零〇一二两三四五六七八九十\\d]+)\\s*点(半)?([零〇一二两三四五六七八九十\\d]+)?\\s*分?")
+        timeRegex.find(content)?.let { match ->
+            val rawHour = parseNumber(match.groupValues[1]) ?: -1
+            val isHalf = match.groupValues[2] == "半"
+            val rawMinute = match.groupValues[3].takeIf { it.isNotEmpty() }?.let { parseNumber(it) } ?: 0
+
+            hour = when (period) {
+                Period.NOON -> rawHour
+                Period.AFTERNOON, Period.EVENING -> {
                     if (rawHour == 12) 12 else rawHour + 12
                 }
                 else -> rawHour
@@ -79,7 +101,7 @@ object TimeParser {
             content = content.removeRange(match.range).trim()
         }
 
-        // 处理X:XX格式的24小时制
+        // 6. 处理 X:XX 格式的24小时制
         val colonTimeRegex = Regex("(\\d+):(\\d+)")
         colonTimeRegex.find(content)?.let { match ->
             hour = match.groupValues[1].toInt()
@@ -103,15 +125,15 @@ object TimeParser {
             currentTime.add(Calendar.DAY_OF_YEAR, 1)
         }
 
-        // 如果时间已经过了今天，自动顺延到明天？不对，PRD说任务当日有效，所以如果时间过了，就不提醒？不对，PRD说"当日有效"，如果用户输入的时间已经过了今天，那应该提示时间无效？
-        // 先按规则：如果计算出来的时间早于当前时间，并且没有说明天，就自动设为明天？不对，PRD说"当日有效，跨天自动清空"，所以如果用户输入的时间已经过了今天，那这个任务就当天不会触发了？
-        // 这里先简单处理：如果时间在当前时间之前，并且没说明天，就加到明天？不对，PRD说不自动顺延，那如果时间过了，这个任务就不提醒，只是显示在列表里。
-        // 先按PRD来：不自动顺延，返回计算的时间，如果时间已经过了，AlarmManager会立即触发？不对，那不行，我们判断一下：如果时间<当前时间，就返回null，提示时间无效。
-
+        // PRD：任务当日有效，不自动顺延。若解析出的时间已过且未说明天，则视为无效提醒时间。
         if (currentTime.timeInMillis < System.currentTimeMillis()) {
             return ParseResult(trimmed, null)
         }
 
         return ParseResult(content, currentTime.timeInMillis)
+    }
+
+    private enum class Period {
+        NONE, EARLY_MORNING, MORNING, NOON, AFTERNOON, EVENING
     }
 }

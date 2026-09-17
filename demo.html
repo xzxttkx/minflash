@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简闪记 Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        .phone {
+            width: 390px;
+            height: 780px;
+            background: white;
+            border-radius: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 40px 24px;
+            display: flex;
+            flex-direction: column;
+        }
+        .title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 24px;
+        }
+        .input-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .input-bar input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-bar input:focus {
+            border-color: #4CAF50;
+        }
+        .btn-mic {
+            width: 48px;
+            height: 48px;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 12px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .btn-add {
+            padding: 0 20px;
+            border: none;
+            background: #4CAF50;
+            color: white;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .task-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .task-item {
+            padding: 16px;
+            background: #f5f7f5;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .task-content {
+            font-size: 16px;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+        .task-time {
+            font-size: 13px;
+            color: #666;
+        }
+        .btn-done {
+            padding: 8px 14px;
+            border: none;
+            background: white;
+            color: #4CAF50;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .empty-state {
+            text-align: center;
+            color: #999;
+            margin-top: 80px;
+            font-size: 15px;
+        }
+        .shake-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            animation: shake 0.5s ease infinite;
+        }
+        .shake-alert.show {
+            display: flex;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .shake-title {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 40px;
+        }
+        .shake-content {
+            font-size: 28px;
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 0 30px;
+        }
+        .shake-hint {
+            font-size: 18px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone">
+        <div class="title">今日闪记</div>
+        <div class="input-bar">
+            <input type="text" id="taskInput" placeholder="输入任务，或点语音按钮说时间+内容">
+            <button class="btn-mic" id="micBtn">🎤</button>
+            <button class="btn-add" id="addBtn">添加</button>
+        </div>
+        <div class="task-list" id="taskList">
+            <div class="empty-state">今天还没有任务，添加一个试试吧~</div>
+        </div>
+    </div>
+
+    <div class="shake-alert" id="shakeAlert">
+        <div class="shake-title">🔔 任务提醒</div>
+        <div class="shake-content" id="alertContent">买洗衣粉</div>
+        <div class="shake-hint">摇一摇手机关闭提醒</div>
+    </div>
+
+    <script>
+        const taskInput = document.getElementById('taskInput');
+        const addBtn = document.getElementById('addBtn');
+        const micBtn = document.getElementById('micBtn');
+        const taskList = document.getElementById('taskList');
+        const emptyState = taskList.querySelector('.empty-state');
+        const shakeAlert = document.getElementById('shakeAlert');
+        const alertContent = document.getElementById('alertContent');
+        let tasks = [];
+
+        function parseTime(input) {
+            const now = new Date();
+            let content = input;
+            
+            // 模拟解析"下午五点买洗衣粉"
+            const timeMatch = input.match(/(下午|早上|上午|晚上)?(\d+)点(半)?/);
+            if (timeMatch) {
+                const period = timeMatch[1] || '';
+                let hour = parseInt(timeMatch[2]);
+                const isHalf = timeMatch[3] === '半';
+                
+                if (period === '下午' || period === '晚上') hour = hour === 12 ? 12 : hour + 12;
+                
+                const time = new Date(now);
+                time.setHours(hour, isHalf ? 30 : 0, 0);
+                content = input.replace(timeMatch[0], '').trim();
+                
+                // 模拟10秒后触发提醒，方便演示
+                setTimeout(() => showAlert(content), 10000);
+                
+                return { content, time };
+            }
+            
+            // 没识别到时间，默认1分钟后提醒
+            const time = new Date(now.getTime() + 60000);
+            setTimeout(() => showAlert(content), 10000);
+            return { content, time };
+        }
+
+        function showAlert(content) {
+            alertContent.textContent = content;
+            shakeAlert.classList.add('show');
+            // 点一下也能关闭，模拟摇一摇
+            shakeAlert.onclick = () => shakeAlert.classList.remove('show');
+        }
+
+        function formatTime(date) {
+            return date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+        }
+
+        function renderTasks() {
+            if (tasks.length === 0) {
+                taskList.innerHTML = '<div class="empty-state">今天还没有任务，添加一个试试吧~</div>';
+                return;
+            }
+            taskList.innerHTML = tasks.map((task, index) => `
+                <div class="task-item">
+                    <div>
+                        <div class="task-content">${task.content}</div>
+                        <div class="task-time">提醒时间: ${formatTime(task.time)}</div>
+                    </div>
+                    <button class="btn-done" onclick="completeTask(${index})">完成</button>
+                </div>
+            `).join('');
+        }
+
+        window.completeTask = function(index) {
+            tasks.splice(index, 1);
+            renderTasks();
+        }
+
+        addBtn.onclick = function() {
+            const input = taskInput.value.trim();
+            if (!input) return;
+            const { content, time } = parseTime(input);
+            tasks.push({ content, time });
+            taskInput.value = '';
+            renderTasks();
+        }
+
+        micBtn.onclick = function() {
+            alert('Demo版本暂时不支持真实语音输入，后续APK版本会接入系统语音识别');
+        }
+
+        taskInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addBtn.click();
+        });
+
+        // 初始加两个示例任务
+        tasks = [
+            { content: "买洗衣粉", time: new Date(Date.now() + 3600000) },
+            { content: "下午三点开小组会", time: new Date(Date.now() + 7200000) }
+        ];
+        renderTasks();
+    </script>
+</body>
+</html>

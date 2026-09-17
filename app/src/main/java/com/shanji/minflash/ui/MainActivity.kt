@@ -1,14 +1,14 @@
 package com.shanji.minflash.ui
 
 import android.os.Bundle
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
@@ -30,57 +30,102 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 读取上次崩溃日志（如果有）
+
         val crashLog = readCrashLog()
-        setContent {
-            MinFlashTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    TaskListScreen(viewModel, crashLog) { clearCrashLog() }
+        if (crashLog != null) {
+            // 用系统原生 AlertDialog 在 Compose 初始化之前就弹出崩溃日志
+            showNativeCrashDialog(crashLog)
+        } else {
+            setupComposeContent()
+        }
+    }
+
+    private fun showNativeCrashDialog(crashLog: String) {
+        val scrollView = ScrollView(this)
+        val textView = TextView(this).apply {
+            text = crashLog
+            setPadding(48, 48, 48, 48)
+            textSize = 11f
+            typeface = android.graphics.Typeface.MONOSPACE
+        }
+        scrollView.addView(textView)
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("上次崩溃日志（截图发给开发者）")
+            .setView(scrollView)
+            .setPositiveButton("清除并继续") { _, _ ->
+                clearCrashLog()
+                setupComposeContent()
+            }
+            .setNegativeButton("保留日志") { _, _ ->
+                setupComposeContent()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun setupComposeContent() {
+        try {
+            setContent {
+                MinFlashTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        TaskListScreen(viewModel)
+                    }
                 }
             }
+        } catch (e: Throwable) {
+            // Compose 初始化失败，用纯 TextView 显示错误
+            writeCrashLog("Compose setContent failed:\n${stackTraceToString(e)}")
+            val tv = TextView(this).apply {
+                text = "Compose 初始化失败，请截图发给开发者：\n\n${stackTraceToString(e)}"
+                setPadding(48, 48, 48, 48)
+                textSize = 11f
+                movementMethod = android.text.method.ScrollingMovementMethod()
+            }
+            setContentView(tv)
         }
+    }
+
+    private fun stackTraceToString(e: Throwable): String {
+        val sw = java.io.StringWriter()
+        e.printStackTrace(java.io.PrintWriter(sw))
+        return sw.toString()
     }
 
     private fun readCrashLog(): String? {
         return try {
-            val dir = getExternalFilesDir(null) ?: return null
-            val file = File(dir, "crash_log.txt")
+            val file = File(filesDir, "crash_log.txt")
             if (file.exists() && file.length() > 0) file.readText() else null
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun writeCrashLog(log: String) {
+        try {
+            val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            File(filesDir, "crash_log.txt").appendText("===== Crash at $timestamp =====\n$log\n\n")
+        } catch (_: Exception) {
+        }
     }
 
     private fun clearCrashLog() {
         try {
-            val dir = getExternalFilesDir(null) ?: return
-            File(dir, "crash_log.txt").delete()
-        } catch (_: Exception) {}
+            File(filesDir, "crash_log.txt").delete()
+        } catch (_: Exception) {
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskListScreen(viewModel: TaskViewModel, crashLog: String?, onCrashDismissed: () -> Unit) {
+fun TaskListScreen(viewModel: TaskViewModel) {
     var inputText by remember { mutableStateOf("") }
     val tasks by viewModel.taskList.collectAsState(initial = emptyList())
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-
-    // 上次崩溃日志弹窗
-    if (crashLog != null) {
-        AlertDialog(
-            onDismissRequest = onCrashDismissed,
-            title = { Text("上次崩溃日志", style = MaterialTheme.typography.titleLarge) },
-            text = {
-                Column(modifier = Modifier
-                    .heightIn(max = 400.dp)
-                    .verticalScroll(rememberScrollState())) {
-                    Text(crashLog, style = MaterialTheme.typography.bodySmall)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = onCrashDismissed) { Text("知道了") }
-            }
-        )
-    }
 
     Column(
         modifier = Modifier
@@ -91,7 +136,7 @@ fun TaskListScreen(viewModel: TaskViewModel, crashLog: String?, onCrashDismissed
         Text(
             text = "今日闪记",
             style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(bottom=16.dp)
+            modifier = Modifier.padding(bottom = 16.dp)
         )
 
         // 输入栏
@@ -116,7 +161,7 @@ fun TaskListScreen(viewModel: TaskViewModel, crashLog: String?, onCrashDismissed
                         inputText = ""
                     }
                 },
-                modifier = Modifier.padding(start=8.dp)
+                modifier = Modifier.padding(start = 8.dp)
             ) {
                 Text("添加")
             }

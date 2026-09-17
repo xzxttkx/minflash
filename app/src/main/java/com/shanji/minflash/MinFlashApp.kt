@@ -33,8 +33,9 @@ class MinFlashApp : Application() {
     }
 
     /**
-     * 全局未捕获异常处理器：将崩溃堆栈写入外部文件，方便无 adb 环境下排查。
-     * 文件路径：Android/data/com.shanji.minflash/files/crash_log.txt
+     * 全局未捕获异常处理器：将崩溃堆栈写入内部存储文件。
+     * 文件路径：data/data/com.shanji.minflash/files/crash_log.txt
+     * 使用内部存储避免外部存储权限问题。
      */
     private fun installCrashLogger() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -44,11 +45,8 @@ class MinFlashApp : Application() {
                 val sw = StringWriter()
                 throwable.printStackTrace(PrintWriter(sw))
                 val log = "===== Crash at $timestamp =====\nThread: ${thread.name}\n$sw\n\n"
-                val dir = getExternalFilesDir(null)
-                if (dir != null) {
-                    val file = File(dir, "crash_log.txt")
-                    file.appendText(log)
-                }
+                // 写入内部存储，无需任何权限
+                File(filesDir, "crash_log.txt").appendText(log)
             } catch (_: Exception) {
                 // 日志写入失败也不能阻止默认处理
             }

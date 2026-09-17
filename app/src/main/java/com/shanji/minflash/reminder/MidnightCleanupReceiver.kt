@@ -23,7 +23,7 @@ class MidnightCleanupReceiver : BroadcastReceiver() {
 
     companion object {
         fun scheduleNextCleanup(context: Context) {
-            val alarmManager = context.getService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
             val intent = Intent(context, MidnightCleanupReceiver::class.java)
             val pendingIntent = android.app.PendingIntent.getBroadcast(
                 context,

@@ -16,12 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.shanji.minflash.ui.theme.MinFlashTheme
 import com.shanji.minflash.viewmodel.TaskViewModel
+import com.shanji.minflash.viewmodel.TaskViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : ComponentActivity() {
     private val viewModel: TaskViewModel by viewModels {
-        TaskViewModelFactory(applicationContext)
+        TaskViewModelFactory(application)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

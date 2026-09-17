@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import com.shanji.minflash.data.TaskDatabase
+import com.shanji.minflash.reminder.MidnightCleanupReceiver
 
 class MinFlashApp : Application() {
     val database: TaskDatabase by lazy { TaskDatabase.getInstance(this) }

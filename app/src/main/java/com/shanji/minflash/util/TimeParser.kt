@@ -111,7 +111,7 @@ object TimeParser {
 
         // 如果没解析到时间，返回null
         if (hour == -1) {
-            return ParseResult(trimmed, null)
+            return ParseResult(content, null)
         }
 
         // 设置计算好的时间
@@ -127,7 +127,7 @@ object TimeParser {
 
         // PRD：任务当日有效，不自动顺延。若解析出的时间已过且未说明天，则视为无效提醒时间。
         if (currentTime.timeInMillis < System.currentTimeMillis()) {
-            return ParseResult(trimmed, null)
+            return ParseResult(content, null)
         }
 
         return ParseResult(content, currentTime.timeInMillis)

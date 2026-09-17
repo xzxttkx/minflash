@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@android:color/white"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔔 任务提醒"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="48dp"/>
+
+    <TextView
+        android:id="@+id/tv_task_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="任务内容"
+        android:textSize="28sp"
+        android:gravity="center"
+        android:layout_marginBottom="80dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="摇一摇手机关闭提醒"
+        android:textSize="20sp"
+        android:textColor="@android:color/darker_gray"/>
+
+</LinearLayout>

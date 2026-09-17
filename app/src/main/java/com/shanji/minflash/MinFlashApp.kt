@@ -17,11 +17,19 @@ class MinFlashApp : Application() {
     val database: TaskDatabase by lazy { TaskDatabase.getInstance(this) }
 
     override fun onCreate() {
+        installCrashLogger() // 最优先安装，尽可能捕获所有崩溃
         super.onCreate()
-        installCrashLogger()
-        createNotificationChannel()
-        // 启动午夜自动清理任务
-        MidnightCleanupReceiver.scheduleNextCleanup(this)
+        try {
+            createNotificationChannel()
+        } catch (e: Exception) {
+            // 通知渠道创建失败不影响主功能
+        }
+        try {
+            // 启动午夜自动清理任务
+            MidnightCleanupReceiver.scheduleNextCleanup(this)
+        } catch (e: Exception) {
+            // 闹钟调度失败不影响主功能
+        }
     }
 
     /**

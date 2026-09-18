@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.shanji.minflash.MinFlashApp
@@ -23,6 +24,14 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        // 获取WakeLock，确保CPU唤醒，不让系统在处理闹钟时休眠（10秒后自动释放）
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "MinFlash:AlarmWakeLock"
+        )
+        wakeLock.acquire(10000L)
+
         // 处理通知栏"完成"按钮点击
         if (intent.action == ACTION_MARK_DONE) {
             val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1)
@@ -93,6 +102,15 @@ class AlarmReceiver : BroadcastReceiver() {
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(taskId.toInt(), notification)
+
+        // 双保险：除了全屏意图，还直接尝试启动摇一摇界面
+        // 部分国产ROM（荣耀/小米等）会拦截全屏意图，直接启动可能成功
+        try {
+            context.startActivity(fullScreenIntent)
+            Log.d("AlarmReceiver", "直接启动ShakeAlertActivity成功")
+        } catch (e: Exception) {
+            Log.e("AlarmReceiver", "直接启动ShakeAlertActivity失败（依赖全屏意图）: ${e.message}")
+        }
     }
 
     private fun markTaskDone(context: Context, taskId: Long) {

@@ -1,9 +1,13 @@
 package com.shanji.minflash.ui
 
 import android.Manifest
+import android.app.AlertDialog
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -48,6 +52,22 @@ class MainActivity : ComponentActivity() {
             ) {
                 requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+
+        // 检查悬浮窗权限（锁屏/熄屏时弹出摇一摇界面必需，国产ROM尤其需要）
+        if (!Settings.canDrawOverlays(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("需要悬浮窗权限")
+                .setMessage("为了在锁屏和熄屏时弹出摇一摇提醒界面，需要授予「显示在其他应用上层」权限。\n\n点击确定后将跳转到设置页面，请找到「极简闪记」并开启权限。")
+                .setPositiveButton("去开启") { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                }
+                .setNegativeButton("稍后", null)
+                .show()
         }
 
         val crashLog = readCrashLog()

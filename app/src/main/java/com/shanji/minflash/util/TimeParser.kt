@@ -101,11 +101,19 @@ object TimeParser {
             content = content.removeRange(match.range).trim()
         }
 
-        // 6. 处理 X:XX 格式的24小时制
+        // 6. 处理 X:XX 格式（支持 12 小时制带时段，如"下午4:35"；也支持 24 小时制如"16:35"）
         val colonTimeRegex = Regex("(\\d+):(\\d+)")
         colonTimeRegex.find(content)?.let { match ->
-            hour = match.groupValues[1].toInt()
+            var rawHour = match.groupValues[1].toInt()
             minute = match.groupValues[2].toInt()
+            // 应用时段转换（和"X点"格式保持一致）
+            hour = when (period) {
+                Period.NOON -> rawHour
+                Period.AFTERNOON, Period.EVENING -> {
+                    if (rawHour == 12) 12 else rawHour + 12
+                }
+                else -> rawHour
+            }
             content = content.removeRange(match.range).trim()
         }
 
@@ -123,6 +131,14 @@ object TimeParser {
         // 如果是明天，加一天
         if (isTomorrow) {
             currentTime.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        // 智能回退：没写时段且小时在1~11之间（12小时制），如果时间已过，当成下午（+12）
+        // 例如用户输入"4:35测试"，当前是下午2点，则自动解释为16:35而非04:35
+        if (period == Period.NONE && hour in 1..11 && !isTomorrow &&
+            currentTime.timeInMillis < System.currentTimeMillis()
+        ) {
+            currentTime.add(Calendar.HOUR_OF_DAY, 12)
         }
 
         // PRD：任务当日有效，不自动顺延。若解析出的时间已过且未说明天，则视为无效提醒时间。

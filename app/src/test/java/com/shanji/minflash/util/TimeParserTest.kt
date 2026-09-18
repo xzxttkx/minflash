@@ -74,4 +74,52 @@ class TimeParserTest {
             assertNull(result.remindTime)
         }
     }
+
+    @Test
+    fun parse_colonTime_withAfternoonPeriod_extractsCorrectTime() {
+        // 测试"明天下午4:35测试"——冒号格式带下午时段，应解析为16:35
+        val result = TimeParser.parse("明天下午4:35测试")
+        assertEquals("测试", result.content)
+        assertNotNull(result.remindTime)
+
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(16, calendar.get(Calendar.HOUR_OF_DAY)) // 下午4点=16点
+        assertEquals(35, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_colonTime_withMorningPeriod_extractsCorrectTime() {
+        // 测试"明天上午9:05开会"——冒号格式带上午时段，应解析为9:05
+        val result = TimeParser.parse("明天上午9:05开会")
+        assertEquals("开会", result.content)
+        assertNotNull(result.remindTime)
+
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(9, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(5, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_chineseTime_withPreciseMinutes_extractsCorrectTime() {
+        // 测试"明天下午4点35分测试"——中文格式带精确分钟，应解析为16:35
+        val result = TimeParser.parse("明天下午4点35分测试")
+        assertEquals("测试", result.content)
+        assertNotNull(result.remindTime)
+
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(16, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(35, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_colonTime_24hourFormat_extractsCorrectTime() {
+        // 测试"明天16:35测试"——24小时制冒号格式，应解析为16:35
+        val result = TimeParser.parse("明天16:35测试")
+        assertEquals("测试", result.content)
+        assertNotNull(result.remindTime)
+
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(16, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(35, calendar.get(Calendar.MINUTE))
+    }
 }

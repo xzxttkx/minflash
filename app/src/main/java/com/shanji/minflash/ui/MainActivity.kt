@@ -1,10 +1,14 @@
 package com.shanji.minflash.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.shanji.minflash.ui.theme.MinFlashTheme
 import com.shanji.minflash.viewmodel.TaskViewModel
 import com.shanji.minflash.viewmodel.TaskViewModelFactory
@@ -28,12 +33,25 @@ class MainActivity : ComponentActivity() {
         TaskViewModelFactory(application)
     }
 
+    // Android 13+ 通知权限请求
+    private val requestNotificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* 授权后通知自然能显示，无需额外处理 */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Android 13+ 运行时请求通知权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         val crashLog = readCrashLog()
         if (crashLog != null) {
-            // 用系统原生 AlertDialog 在 Compose 初始化之前就弹出崩溃日志
             showNativeCrashDialog(crashLog)
         } else {
             setupComposeContent()

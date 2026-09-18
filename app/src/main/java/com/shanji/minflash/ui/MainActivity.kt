@@ -28,6 +28,7 @@ import androidx.core.content.ContextCompat
 import com.shanji.minflash.ui.theme.MinFlashTheme
 import com.shanji.minflash.viewmodel.TaskViewModel
 import com.shanji.minflash.viewmodel.TaskViewModelFactory
+import com.shanji.minflash.reminder.KeepAliveService
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -69,6 +70,9 @@ class MainActivity : ComponentActivity() {
                 .setNegativeButton("稍后", null)
                 .show()
         }
+
+        // 启动前台保活服务，防止国产ROM杀进程导致闹钟不触发
+        KeepAliveService.start(this)
 
         val crashLog = readCrashLog()
         if (crashLog != null) {

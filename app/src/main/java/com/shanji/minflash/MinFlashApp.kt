@@ -63,6 +63,7 @@ class MinFlashApp : Application() {
             ).apply {
                 description = getString(R.string.reminder_channel_desc)
                 enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC // 锁屏显示完整内容
                 setSound(null, null) // 我们自己控制铃声，这里静音
             }
             val manager = getSystemService(NotificationManager::class.java)

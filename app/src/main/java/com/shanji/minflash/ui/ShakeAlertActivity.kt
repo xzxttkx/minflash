@@ -1,6 +1,8 @@
 package com.shanji.minflash.ui
 
 import android.app.Activity
+import android.app.NotificationManager
+import android.content.Context
 import android.media.RingtoneManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -25,11 +27,26 @@ class ShakeAlertActivity : Activity(), SensorEventListener {
     private lateinit var vibrator: Vibrator
     private var ringtone: android.media.Ringtone? = null
     private var lastShakeTime = 0L
+    private var taskId: Long = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 锁屏上显示 + 点亮屏幕 + 保持屏幕常亮（兼容各 API 级别）
+        window.addFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                or android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                or android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                or android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+
         setContentView(R.layout.activity_shake_alert)
 
+        taskId = intent.getLongExtra(EXTRA_TASK_ID, -1)
         val content = intent.getStringExtra(EXTRA_CONTENT) ?: "任务提醒"
         findViewById<TextView>(R.id.tv_task_content).text = content
 
@@ -61,6 +78,11 @@ class ShakeAlertActivity : Activity(), SensorEventListener {
     private fun stopAlert() {
         ringtone?.stop()
         vibrator.cancel()
+        // 摇一摇后同时取消通知栏和锁屏上的通知
+        if (taskId >= 0) {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(taskId.toInt())
+        }
         finish()
     }
 

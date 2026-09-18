@@ -13,18 +13,49 @@ object TimeParser {
         val remindTime: Long?
     )
 
-    private val CN_NUM_MAP = mapOf(
+    private val CN_DIGIT_MAP = mapOf(
         "零" to 0, "〇" to 0,
         "一" to 1, "二" to 2, "两" to 2,
         "三" to 3, "四" to 4, "五" to 5, "六" to 6,
-        "七" to 7, "八" to 8, "九" to 9,
-        "十" to 10, "十一" to 11, "十二" to 12
+        "七" to 7, "八" to 8, "九" to 9
     )
 
+    /**
+     * 解析中文/阿拉伯数字，支持 0~59（覆盖小时和分钟所有可能值）。
+     * 支持：单字（五=5）、十几（十五=15）、几十几（二十五=25）、零开头（零五=5）、阿拉伯数字（15）。
+     */
     private fun parseNumber(token: String): Int? {
         if (token.isEmpty()) return null
+        // 阿拉伯数字直接转
         token.toIntOrNull()?.let { return it }
-        return CN_NUM_MAP[token]
+
+        var s = token
+        // 处理"零"开头，如"零五"=5
+        if (s.startsWith("零") || s.startsWith("〇")) {
+            s = s.substring(1)
+            if (s.isEmpty()) return 0
+        }
+
+        // 处理"十"（10-19）：十=10, 十一=11, ..., 十九=19
+        if (s == "十") return 10
+        if (s.startsWith("十")) {
+            val digit = CN_DIGIT_MAP[s.substring(1)]
+            if (digit != null && digit in 1..9) return 10 + digit
+            return null
+        }
+
+        // 处理"X十"或"X十Y"（20-59）：二十=20, 二十五=25, ..., 五十九=59
+        if (s.contains("十")) {
+            val parts = s.split("十")
+            val tens = CN_DIGIT_MAP[parts[0]] ?: return null
+            val ones = if (parts.size > 1 && parts[1].isNotEmpty()) {
+                CN_DIGIT_MAP[parts[1]] ?: return null
+            } else 0
+            return tens * 10 + ones
+        }
+
+        // 单字数字（0-9）
+        return CN_DIGIT_MAP[s]
     }
 
     fun parse(input: String): ParseResult {

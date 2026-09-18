@@ -122,4 +122,154 @@ class TimeParserTest {
         assertEquals(16, calendar.get(Calendar.HOUR_OF_DAY))
         assertEquals(35, calendar.get(Calendar.MINUTE))
     }
+
+    // ===== 中文分钟数全面测试（之前 >9 的中文分钟全部解析为0，这是核心bug）=====
+
+    @Test
+    fun parse_chineseMinute_fifteen_extractsCorrectTime() {
+        val result = TimeParser.parse("明天下午五点十五分测试")
+        assertEquals("测试", result.content)
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(17, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(15, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_chineseMinute_twenty_extractsCorrectTime() {
+        val result = TimeParser.parse("明天下午五点二十分测试")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(17, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(20, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_chineseMinute_zeroFive_extractsCorrectTime() {
+        // "零五"=05分
+        val result = TimeParser.parse("明天早上八点零五分开会")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(8, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(5, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_chineseMinute_twentyFive_extractsCorrectTime() {
+        val result = TimeParser.parse("明天下午五点二十五分测试")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(17, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(25, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_chineseMinute_fortyFive_extractsCorrectTime() {
+        val result = TimeParser.parse("明天下午五点四十五分测试")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(17, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(45, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_chineseMinute_fiftyNine_extractsCorrectTime() {
+        val result = TimeParser.parse("明天下午五点五十九分测试")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(17, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(59, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_chineseMinute_ten_extractsCorrectTime() {
+        // "十分"=10分
+        val result = TimeParser.parse("明天下午五点十分测试")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(17, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(10, calendar.get(Calendar.MINUTE))
+    }
+
+    // ===== 各时段测试 =====
+
+    @Test
+    fun parse_noonTwelve_extractsCorrectTime() {
+        // 中午12点 = 12:00
+        val result = TimeParser.parse("明天中午十二点吃饭")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(12, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_eveningEight_extractsCorrectTime() {
+        // 晚上8点 = 20:00
+        val result = TimeParser.parse("明天晚上八点看电视")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(20, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_earlyMorningThree_extractsCorrectTime() {
+        // 凌晨3点 = 03:00（加明天保证在未来）
+        val result = TimeParser.parse("明天凌晨三点吃药")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(3, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, calendar.get(Calendar.MINUTE))
+    }
+
+    // ===== 阿拉伯数字带"点"格式 =====
+
+    @Test
+    fun parse_arabicDigit_withMinutes_extractsCorrectTime() {
+        // "下午5点15分" 阿拉伯数字
+        val result = TimeParser.parse("明天下午5点15分测试")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(17, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(15, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_arabicDigit_tenOClock_extractsCorrectTime() {
+        // "上午10点"
+        val result = TimeParser.parse("明天上午10点开会")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(10, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, calendar.get(Calendar.MINUTE))
+    }
+
+    // ===== 相对时间 =====
+
+    @Test
+    fun parse_tenMinutesLater_extractsCorrectTime() {
+        val result = TimeParser.parse("10分钟后喝水")
+        assertEquals("喝水", result.content)
+        assertNotNull(result.remindTime)
+        val diff = (result.remindTime!! - System.currentTimeMillis()) / 1000.0 / 60.0
+        assertEquals(10.0, diff, 2.0)
+    }
+
+    // ===== 冒号格式各时段 =====
+
+    @Test
+    fun parse_colonTime_eveningPeriod_extractsCorrectTime() {
+        // "晚上8:15" = 20:15
+        val result = TimeParser.parse("明天晚上8:15看电视")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(20, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(15, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_colonTime_noonPeriod_extractsCorrectTime() {
+        // "中午12:30" = 12:30
+        val result = TimeParser.parse("明天中午12:30吃饭")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(12, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(30, calendar.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun parse_colonTime_zeroMinute_extractsCorrectTime() {
+        // "9:00" = 09:00
+        val result = TimeParser.parse("明天上午9:00开会")
+        val calendar = Calendar.getInstance().apply { timeInMillis = result.remindTime!! }
+        assertEquals(9, calendar.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, calendar.get(Calendar.MINUTE))
+    }
 }
